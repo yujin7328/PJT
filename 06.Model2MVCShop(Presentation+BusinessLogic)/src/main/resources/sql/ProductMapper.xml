@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+		PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ProductMapper">
+
+	<resultMap id="ProductSelectMap" type="product">
+		<result property="fileName" column="IMAGE_FILE" jdbcType="VARCHAR" />
+		<result property="manuDate" column="MANUFACTURE_DAY" jdbcType="VARCHAR" />
+		<result property="price" column="PRICE" jdbcType="NUMERIC" />
+		<result property="prodDetail" column="PROD_DETAIL" jdbcType="VARCHAR" />
+		<result property="prodName" column="PROD_NAME" jdbcType="VARCHAR" />
+		<result property="prodNo" column="PROD_NO" jdbcType="NUMERIC" />
+		<result property="regDate" column="REG_DATE" jdbcType="DATE" />
+		<result property="proTranCode" column="tran_status_code" jdbcType="CHAR" />
+	</resultMap>
+
+	<insert id="addProduct" parameterType="product">
+		INSERT
+		INTO
+		product(PROD_NO, PROD_NAME, PROD_DETAIL, MANUFACTURE_DAY, PRICE,
+		IMAGE_FILE, REG_DATE)
+		VALUES (SEQ_PRODUCT_PROD_NO.NEXTVAL, 
+		#{prodName:VARCHAR},		
+		#{prodDetail:VARCHAR}, 
+		#{manuDate:VARCHAR},
+		#{price:NUMERIC},
+		#{fileName:VARCHAR},
+		TO_CHAR(SYSDATE,
+		'YYYYMMDD'))
+	</insert>
+
+	<select id="getProduct" parameterType="int" resultType="product">
+		SELECT
+		p.prod_no as prodNo, 
+		p.prod_name as prodName, 
+		p.prod_detail as prodDetail, 
+		p.manufacture_day as manuDate, 
+		p.price, 
+		p.reg_date as regDate, 
+		NVL(t.tran_status_code,0) as proTranCode
+		FROM product p, transaction t
+		WHERE
+		p.prod_no = t.prod_no
+		AND p.prod_no= #{value}
+	</select>
+
+	<update id="updateProduct" parameterType="product">
+		UPDATE product
+		<set>
+			prod_name=#{prodName:VARCHAR},
+			prod_detail=#{prodDetail:VARCHAR},
+			manufacture_day=#{manuDate:DATE},
+			price=#{price:NUMERIC},
+			image_file=#{fileName:VARCHAR}
+		</set>
+		WHERE prod_no = #{prodNo}
+	</update>
+
+<select  id="getProductList"  parameterType="search" resultMap="ProductSelectMap">
+		  	SELECT *
+		  	FROM (	SELECT inner_table.* , ROWNUM AS row_seq
+		  					FROM		(	SELECT p.prod_no, p.prod_name, p.price, p.reg_date,  p.prod_detail, t.tran_status_code
+												FROM product p, transaction t 
+												<where>
+												 t.prod_no(+)= p.prod_no	
+												<if test="searchCondition != null">
+														<if test="searchCondition == 0 and searchKeyword !='' ">
+											 				AND p.prod_no = #{searchKeyword}
+														</if>
+														<if test="searchCondition == 1 and searchKeyword !='' ">
+											 				AND	prod_name LIKE '%${searchKeyword}%'
+														</if>
+														<if test="searchCondition == 2 and searchKeyword !='' ">
+											 				AND	price = #{searchKeyword}
+														</if>
+												</if>
+													</where>
+												ORDER BY p.prod_no ) inner_table
+							WHERE ROWNUM &lt;= #{endRowNum} )
+			WHERE row_seq BETWEEN #{startRowNum} AND #{endRowNum} 
+</select> 
+
+<select  id="getTotalCount"  parameterType="search" resultType="int">
+		  	SELECT COUNT(*)
+		  	FROM  
+		  	(SELECT p.prod_no, p.prod_name, p.price, p.reg_date,  p.prod_detail, t.tran_status_code
+												FROM product p, transaction t 
+												<where>
+												 t.prod_no(+)= p.prod_no	
+												<if test="searchCondition != null">
+														<if test="searchCondition == 0 and searchKeyword !='' ">
+											 		AND p.prod_no = #{searchKeyword}+10000
+														</if>
+														<if test="searchCondition == 1 and searchKeyword !='' ">
+											 		AND	prod_name = #{searchKeyword}
+														</if>
+														<if test="searchCondition == 2 and searchKeyword !='' ">
+											 		AND	price = #{searchKeyword}
+														</if>
+												</if>
+													</where>
+												ORDER BY p.prod_no  ) countTable
+</select>
+
+<!-- 
+			sql = "SELECT COUNT(*) "+
+			          "FROM ( " +sql+ ") countTable";
+			
+			int totalCount = 0;
+			if( rs.next() ){
+				totalCount = rs.getInt(1);
+			}			
+			return totalCount;
+		}
+	 -->
+</mapper>
